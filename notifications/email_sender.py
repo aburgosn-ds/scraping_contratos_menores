@@ -50,16 +50,19 @@ class EmailSender:
             msg['Subject'] = subject
             msg['From'] = self.config['sender_email']
             msg['To'] = self.config['recipient_email']
-            
+            msg['Cc'] = self.config['cc']
+
             # Attach HTML content
             html_message = MIMEText(body, 'html')
             msg.attach(html_message)
             
+            all_recipients = [msg['To'], msg['Cc']]
+
             # Send email
             with smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port']) as server:
                 server.starttls()
                 server.login(self.config['sender_email'], self.config['sender_password'])
-                server.send_message(msg)
+                server.sendmail(self.config['sender_email'], all_recipients, msg.as_string())
             
             self.logger.info(f"Daily report sent successfully to {self.config['recipient_email']}")
             

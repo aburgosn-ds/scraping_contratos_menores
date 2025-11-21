@@ -10,8 +10,9 @@ EMAIL_CONFIG = {
     'smtp_port': 587,
     'sender_email': os.getenv('SENDER_EMAIL', 'dango.vq@gmail.com'),
     'sender_password': os.getenv('SENDER_PASSWORD', 'bvpr qnik gmbw ueas'),
-    'recipient_email': os.getenv('RECIPIENT_EMAIL', 'a.burgos.n05@gmail.com'),
-    'subject_template': 'Reporte Contrataciones Menores - {date}'
+    'recipient_email': os.getenv('RECIPIENT_EMAIL', 'burgos1269@gmail.com'),
+    'subject_template': 'Reporte Contrataciones Menores - {date}',
+    'cc': os.getenv('CC', 'a.burgos.n05@gmail.com')
 }
 
 # Scraper configurations
