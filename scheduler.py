@@ -2,7 +2,6 @@
 # scheduler.py - Run `main()` every hour with retries using APScheduler
 
 from datetime import datetime, timedelta
-import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 

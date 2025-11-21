@@ -50,12 +50,17 @@ def main():
         
         
         # 6 Send email
-        email_sender = EmailSender()
-        email_sender.send_daily_report(df_accepted)
+        if len(df_accepted)>0:
+            email_sender = EmailSender()
+            email_sender.send_daily_report(df_accepted)
+        else:
+            logger.info("NO NEW RELEVANT RECORDS FOUND")
+
         return result
 
     except Exception as e:
         logger.error(f"Error while executing main: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":
