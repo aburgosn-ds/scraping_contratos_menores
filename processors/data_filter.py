@@ -1,5 +1,5 @@
 # =============================================================================
-# processors/data_filter.py - Data filtering logic
+# processors/data_filter.py - Data filtering logic from database
 # =============================================================================
 
 import pandas as pd
@@ -9,27 +9,15 @@ import logging
 from typing import List
 
 class DataFilter:
-    """Filter data based on text analysis."""
-    
-    def __init__(self, text_analyzer: TextAnalyzer):
-        self.text_analyzer = text_analyzer
+    """Filter data based on database comparision."""
+    def __init__(self, new_data: pd.DataFrame):
+        self.new_data = new_data
         self.logger = logging.getLogger(self.__class__.__name__)
-    
-    def filter_by_topics(self, df: pd.DataFrame, description_column: str, accepted_topics: List[str]) -> pd.DataFrame:
-        """Filter DataFrame based on topic analysis of description column."""
-        if df.empty or description_column not in df.columns:
-            self.logger.warning(f"DataFrame is empty or missing column: {description_column}")
-            return pd.DataFrame()
+
+
+    def df_filter_old_data(self, current_ids: list) -> pd.DataFrame:
+        '''Returns data not in database'''
+        new_records = ~self.new_data['codigo'].isin(current_ids)
         
-        # Clean and prepare descriptions
-        descriptions = df[description_column].fillna('').astype(str).tolist()
-        
-        # Analyze all descriptions
-        self.logger.info(f"Analyzing {len(descriptions)} descriptions for topic relevance")
-        topic_matches = self.text_analyzer.analyze_batch(descriptions, accepted_topics)
-        
-        # Filter DataFrame
-        filtered_df = df[topic_matches].copy()
-        
-        self.logger.info(f"Filtered from {len(df)} to {len(filtered_df)} records")
-        return filtered_df
+        self.logger.info(f"Data filtered:\n\t-> New Data:{len(self.new_data)}\n\t-> Old Data:{len(current_ids)}\n\t-> Final Data: {len(new_records)}")
+        return self.new_data[new_records]

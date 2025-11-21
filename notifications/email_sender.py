@@ -22,7 +22,7 @@ class EmailSender:
         try:
             # Create email content
             subject = self.config['subject_template'].format(
-                date=datetime.now().strftime('%Y-%m-%d')
+                date=datetime.now().strftime('%H:%M - %d/%m/%Y')
             )
             
             # Generate HTML table from DataFrame
@@ -38,8 +38,8 @@ class EmailSender:
                 </style>
             </head>
             <body>
-                <h2>Daily Scraping Report</h2>
-                <p>Found {len(data)} relevant records on {datetime.now().strftime('%Y-%m-%d')}:</p>
+                <h2>Reporte Actualizado Contrataciones Menores</h2>
+                <p>{len(data)} contrataciones menores relevantes encontradas el {datetime.now().strftime('%d-%m-%Y')} a las {datetime.now().strftime('%H:%M')}:</p>
                 {html_table}
             </body>
             </html>

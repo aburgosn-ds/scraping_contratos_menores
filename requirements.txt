@@ -4,3 +4,4 @@ selenium
 pandas
 google-generativeai
 lxml
+apscheduler>=3.10.0

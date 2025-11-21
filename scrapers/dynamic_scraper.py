@@ -17,7 +17,14 @@ class DynamicScraper(BaseScraper):
     
     def __init__(self, config):
         super().__init__(config)
-        self.driver = self._setup_driver()
+        self.logger.info("Initializing DynamicScraper with config: %s", {k: v for k, v in config.items() if k != 'selectors'})
+        try:
+            self.driver = self._setup_driver()
+            self.logger.info("WebDriver setup completed successfully")
+        except Exception as e:
+            self.logger.error("Failed to setup WebDriver: %s", str(e))
+            # re-raise so caller is aware if initialization fails
+            raise
     
     def _setup_driver(self):
         """Setup Chrome WebDriver with options."""
@@ -26,40 +33,55 @@ class DynamicScraper(BaseScraper):
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
-        
-        return webdriver.Chrome(options=chrome_options)
+        self.logger.debug("Starting Chrome WebDriver with headless options")
+        try:
+            driver = webdriver.Chrome(options=chrome_options)
+            self.logger.debug("Chrome WebDriver started")
+            return driver
+        except Exception as e:
+            self.logger.exception("Error initializing Chrome WebDriver: %s", str(e))
+            raise
     
     def _sleep(self):
         # Additional wait time if specified
-            if 'wait_time' in self.config:
-                time.sleep(self.config['wait_time'])
+        wait_time = self.config.get('wait_time')
+        if wait_time:
+            time.sleep(wait_time)
 
     def scrape_page(self, page_url: str) -> pd.DataFrame:
         """Scrape a dynamic page."""
         try:
+            self.logger.info("Scraping dynamic page: %s", page_url)
             self.driver.get(page_url)
-            
+
             # Wait for content to load
             wait = WebDriverWait(self.driver, 10)
-            
+
             self._sleep()
 
             # Seleccionar vigente
+            self.logger.debug("Selecting 'vigente' checkbox using xpath: %s", self.config['selectors'].get('checkbox_vigente'))
             checkbox_vigente = select_by_xpath(self.driver, self.config['selectors']['checkbox_vigente'])
             checkbox_vigente.click()
+            self.logger.debug("Clicked 'vigente' checkbox")
 
             # Filtrar departamento
+            self.logger.debug("Opening department dropdown: %s", self.config['selectors'].get('dropdown_department'))
             dropdown_department = select_by_xpath(self.driver, self.config['selectors']['dropdown_department'])
             dropdown_department.click()
 
             select_department = select_by_xpath(self.driver, self.config['selectors']['select_department'])
             select_department.click()
+            self.logger.debug("Department selected: %s", self.config['selectors'].get('select_department'))
 
             self._sleep()
 
             # Número de registros
             paginator = select_by_xpath(self.driver, self.config['selectors']['paginator'])
-            n_records = int(paginator.text.split("of")[-1].strip())
+            paginator_text = paginator.text if paginator is not None else ''
+            self.logger.debug("Paginator text: %s", paginator_text)
+            n_records = int(paginator_text.split("of")[-1].strip()) if paginator_text else 0
+            self.logger.info("Found %s records on the page", n_records)
 
             if n_records > 5:
                 dropdown_records_per_page = select_by_xpath(self.driver, self.config['selectors']['dropdown_records_per_page'])
@@ -71,6 +93,7 @@ class DynamicScraper(BaseScraper):
                 self._sleep()
 
                 all_calls = selects_by_xpath(self.driver, self.config['selectors']['all_calls'])
+                self.logger.info("Located %s call elements on page", len(all_calls) if all_calls is not None else 0)
 
                 dict_calls = {'codigo': [],
                             'titulo': [],
@@ -97,29 +120,29 @@ class DynamicScraper(BaseScraper):
                 dict_calls['fecha_publicacion'].append(temp[4][22:].strip())
                 dict_calls['url'].append(url)
 
+            # Close driver after scraping this page to free resources
+            try:
+                self.logger.debug("Quitting WebDriver after scraping page")
+                self.driver.quit()
+                # avoid double-quitting later
+                delattr(self, 'driver')
+            except Exception:
+                # ignore errors on quit but log them
+                self.logger.exception("Exception while quitting WebDriver")
 
-            
-            records = []
-            record_elements = self.driver.find_elements(By.CLASS_NAME, self.config['selectors']['records_container'])
-            
-            for element in record_elements:
-                record = {}
-                
-                for field, selector in self.config['selectors'].items():
-                    if field not in ['records_container', 'load_more_button']:
-                        try:
-                            field_element = element.find_element(By.CSS_SELECTOR, selector)
-                            record[field] = field_element.text.strip()
-                        except:
-                            record[field] = ''
-                
-                if record:
-                    records.append(record)
-            
-            return pd.DataFrame(records)
+            df = pd.DataFrame(dict_calls)
+            self.logger.info("Scraped DataFrame with shape %s", df.shape)
+            return df
             
         except Exception as e:
-            self.logger.error(f"Error scraping dynamic page {page_url}: {str(e)}")
+            self.logger.exception("Error scraping dynamic page %s: %s", page_url, str(e))
+            # Attempt to close driver if it's still present
+            try:
+                if hasattr(self, 'driver'):
+                    self.driver.quit()
+                    delattr(self, 'driver')
+            except Exception:
+                self.logger.exception("Error while closing WebDriver after exception")
             return pd.DataFrame()
     
     def get_next_page_url(self, current_url: str, page_num: int) -> str:
@@ -129,5 +152,10 @@ class DynamicScraper(BaseScraper):
     
     def __del__(self):
         """Cleanup driver."""
+        self.logger.debug("Destructor called for DynamicScraper")
         if hasattr(self, 'driver'):
-            self.driver.quit()
+            try:
+                self.driver.quit()
+                self.logger.info("WebDriver quit in destructor")
+            except Exception:
+                self.logger.exception("Error quitting WebDriver in destructor")

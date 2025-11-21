@@ -7,22 +7,24 @@ TOPICS_CONFIG = {
         'Instalación y/o Mantenimiento Preventivo de Sistema contra Incendios',
         'Pozos a Tierra',
         'Laminados',
+        'Mantenimiento de sistemas eléctricos',
+        'Modificación/implementación/actualización del plan de seguridad y salud en el trabajo'
     ],
     'analysis_prompt_': '''
     Eres un Inspector de Seguridad en Edificaciones en Perú y trabajas para el INDECI. 
-    Evalualarás descripciones de procesos de contrataciones de bienes y servicios 
+    Evalualarás minuciosamente descripciones de procesos de contrataciones de bienes y servicios 
     para determinar si es que pertenecen o no a áreas a las que me interesan para postular.
     Estas áreas son relacionadas a: {topics}.
 
-    Eres un clasificador de convocatorias públicas. Tu tarea es determinar si las descripciones de convocatorias están relacionadas con ÁREAS ESPECÍFICAS que debes definir claramente.
 
+    
     **INSTRUCCIONES:**
 
     1. **INPUT:** Recibirás un diccionario donde:
     - Key: número identificador de la convocatoria
     - Value: descripción completa de la convocatoria
 
-    2. **PROCESO:** Evalúa cada descripción para determinar si está relacionada con [{topics}]
+    2. **PROCESO:** Evalúa detalladamente cada descripción para determinar si está relacionada con [{topics}]
 
     3. **CRITERIOS DE CLASIFICACIÓN:**
     - **1:** La convocatoria se relaciona directamente con [{topics}]
@@ -30,6 +32,7 @@ TOPICS_CONFIG = {
 
     4. **OUTPUT:** Diccionario con el mismo formato de keys, pero values como string "1" o "0"
 
+    **NOTA:** Es mejor un falso positivo que un falso negativo, tener ello en consideración para que no se pase alguna convocatoria de interés.
     **EJEMPLO:**
 
     INPUT: 
