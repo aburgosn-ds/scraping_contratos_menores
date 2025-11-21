@@ -2,15 +2,18 @@
 # main.py - Entry point and orchestration
 # =============================================================================
 
-import logging
-from datetime import datetime
-import pandas as pd
-from config.settings import SCRAPERS_CONFIG, EMAIL_CONFIG, TOPICS_CONFIG
-from scrapers.scraper_factory import ScraperFactory
+import sqlite3
+from config.settings import SCRAPERS_CONFIG
 from processors.text_analyzer import TextAnalyzer
 from processors.data_filter import DataFilter
 from notifications.email_sender import EmailSender
+from scrapers.dynamic_scraper import DynamicScraper
 from utils.logger import setup_logger
+from database import connection
+import sqlite3
+import warnings
+
+warnings.filterwarnings('ignore')
 
 def main():
     """Main execution function for daily scraping and processing."""
@@ -18,52 +21,42 @@ def main():
     logger.info("Starting daily scraping process")
     
     try:
-        # Initialize components
-        scraper_factory = ScraperFactory()
+        # 1 Scraping
+        scraper = DynamicScraper(SCRAPERS_CONFIG['contratos_menores_seace'])
+        df_contrataciones_hoy = scraper.scrape_page("https://prod6.seace.gob.pe/buscador-publico/contrataciones")
+
+        # 2 Conexión db
+        db = connection.DbManager('./tests/convocatorias.db')
+        db_codes = db.select_all_codes('convocatorias')
+
+        # 3 Data filtering
+        data_filter = DataFilter(df_contrataciones_hoy)
+        result = data_filter.df_filter_old_data(db_codes)
+
+        # 4 Text analysis
         text_analyzer = TextAnalyzer()
-        data_filter = DataFilter(text_analyzer)
+        df_result = text_analyzer.analyze_text_topic(result)
+        
+        # 5 Save data to db
+        with sqlite3.connect("./tests/convocatorias.db") as conn:
+            df_result.to_sql("convocatorias", con=conn, if_exists='append', index=False)
+            logger.info("Data saved successfully to db")
+
+        df_accepted = df_result[df_result.util == 1]
+
+        # Clean df to send
+        df_accepted = df_accepted.loc[:, ['empresa', 'objeto', 'descripcion', 'fecha_publicacion', 'url']]
+        df_accepted.columns = ['Empresa', 'Tipo', 'Descripcion', 'Fecha de Publicación', 'Link']
+        
+        
+        # 6 Send email
         email_sender = EmailSender()
-        
-        all_filtered_data = []
-        
-        # Process each configured scraper
-        for scraper_config in SCRAPERS_CONFIG:
-            logger.info(f"Processing scraper: {scraper_config['name']}")
-            
-            # Create appropriate scraper
-            scraper = scraper_factory.create_scraper(scraper_config)
-            
-            # Scrape data
-            raw_data = scraper.scrape_all_pages()
-            
-            if not raw_data.empty:
-                # Filter data based on topic analysis
-                filtered_data = data_filter.filter_by_topics(
-                    raw_data, 
-                    scraper_config['description_column'],
-                    TOPICS_CONFIG['accepted_topics']
-                )
-                
-                if not filtered_data.empty:
-                    filtered_data['source'] = scraper_config['name']
-                    all_filtered_data.append(filtered_data)
-                    logger.info(f"Found {len(filtered_data)} relevant records from {scraper_config['name']}")
-                else:
-                    logger.info(f"No relevant records found from {scraper_config['name']}")
-            else:
-                logger.warning(f"No data scraped from {scraper_config['name']}")
-        
-        # Combine all filtered data and send email
-        if all_filtered_data:
-            combined_data = pd.concat(all_filtered_data, ignore_index=True)
-            email_sender.send_daily_report(combined_data)
-            logger.info(f"Daily report sent with {len(combined_data)} total records")
-        else:
-            logger.info("No relevant data found. No email sent.")
-            
+        email_sender.send_daily_report(df_accepted)
+        return result
+
     except Exception as e:
-        logger.error(f"Error in main process: {str(e)}")
-        raise
+        logger.error(f"Error while executing main: {str(e)}")
+
 
 if __name__ == "__main__":
     main()

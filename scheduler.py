@@ -6,7 +6,7 @@ import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from main_test import main as run_main
+from main import main as run_main
 from utils.logger import setup_logger
 
 
