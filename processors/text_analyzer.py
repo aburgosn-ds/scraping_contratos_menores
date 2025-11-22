@@ -23,7 +23,7 @@ class TextAnalyzer:
     
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.client = genai.Client(api_key='AIzaSyCMdfgJpQaVuNzc2pZ_a62674QWHB8S9NU')
+        self.client = genai.Client(api_key=GEMINI_CONFIG['api_key'])
         self.model_config = types.GenerateContentConfig(
             system_instruction=TOPICS_CONFIG['analysis_prompt_'],
             response_mime_type=GEMINI_CONFIG['response_mime_type'],
