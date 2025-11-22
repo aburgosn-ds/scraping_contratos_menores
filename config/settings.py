@@ -53,7 +53,7 @@ SCRAPERS_CONFIG = {
 
 # Gemini API configuration
 GEMINI_CONFIG = {
-    'api_key': os.getenv('GEMINI_API_KEY', 'AIzaSyCMdfgJpQaVuNzc2pZ_a62674QWHB8S9NU'),
+    'api_key': os.getenv('GEMINI_API_KEY', ''),
     'model': 'gemini-2.5-flash-lite',
     'max_retries': 3,
     'retry_delay': 1,
